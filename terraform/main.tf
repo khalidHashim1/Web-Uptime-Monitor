@@ -44,10 +44,19 @@ data "archive_file" "canary_zip" {
 # -----------------------------
 # Upload ZIP to S3
 # -----------------------------
+#resource "aws_s3_object" "canary_zip" {
+  #bucket = aws_s3_bucket.code_bucket.id
+  #key    = "canary.zip"
+ # source = data.archive_file.canary_zip.output_path
+#}
+
 resource "aws_s3_object" "canary_zip" {
   bucket = aws_s3_bucket.code_bucket.id
   key    = "canary.zip"
   source = data.archive_file.canary_zip.output_path
+
+  etag = filemd5(data.archive_file.canary_zip.output_path)
+  source_hash = data.archive_file.canary_zip.output_base64sha256
 }
 
 # -----------------------------
@@ -62,7 +71,10 @@ resource "aws_iam_role" "canary_role" {
       Action = "sts:AssumeRole"
       Effect = "Allow"
       Principal = {
-        Service = "synthetics.amazonaws.com"
+        Service = [
+          "lambda.amazonaws.com",
+          "synthetics.amazonaws.com"
+        ]
       }
     }]
   })
@@ -98,7 +110,7 @@ resource "aws_synthetics_canary" "website_monitor" {
   s3_key    = aws_s3_object.canary_zip.key
 
   schedule {
-    expression = "rate(5 minutes)"
+    expression = "cron(0 6 * * ? *)"
   }
 
   depends_on = [aws_s3_object.canary_zip]
@@ -137,3 +149,24 @@ resource "aws_cloudwatch_metric_alarm" "uptime_alarm" {
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
+
+
+resource "aws_iam_role_policy" "canary_cloudwatch_metrics" {
+  name = "CanaryCloudWatchMetrics"
+  role = aws_iam_role.canary_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = [
+          "cloudwatch:PutMetricData",
+          "cloudwatch:GetMetricData",
+          "cloudwatch:ListMetrics"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
