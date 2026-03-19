@@ -29,7 +29,7 @@ It demonstrates skills in **IaC, cloud monitoring, and automation**.
 
 ## ⚡ Features  
 
-- Website uptime checks every 5 mins ⏱️  
+- Website uptime checks every 5 mins (change it to 1 day) for cost ⏱️  
 - Metrics & logs stored in CloudWatch 📊  
 - Automatic deployment of canary code to S3 🗂️  
 - SNS email notifications on failures ✉️  
